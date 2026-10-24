@@ -1,6 +1,7 @@
 package com.example.mockgps
 
 import android.Manifest
+import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -17,6 +18,7 @@ import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -29,12 +31,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvLiveSpeed: TextView
     private lateinit var tvLiveHeading: TextView
     private lateinit var tvLiveDistance: TextView
-    private lateinit var tvLiveDrift: TextView
+    private lateinit var tvLiveAltitude: TextView
     private lateinit var btnCopyCoords: TextView
     private lateinit var tvStepSize: TextView
 
     private lateinit var editLat: EditText
     private lateinit var editLon: EditText
+    private lateinit var editAlt: EditText
     private lateinit var editSpeed: EditText
     private lateinit var editBearing: EditText
     private lateinit var cbDrift: CheckBox
@@ -42,18 +45,37 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: SharedPreferences
     private var selectedStepMeters: Double = 50.0
 
+    private val mapPickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val data = result.data ?: return@registerForActivityResult
+            val lat = data.getDoubleExtra(MapPickerActivity.RESULT_LAT, 25.1972)
+            val lon = data.getDoubleExtra(MapPickerActivity.RESULT_LON, 55.2744)
+            val alt = data.getDoubleExtra(MapPickerActivity.RESULT_ALT, 15.0)
+
+            editLat.setText("%.6f".format(lat))
+            editLon.setText("%.6f".format(lon))
+            editAlt.setText(if (alt % 1.0 == 0.0) alt.toInt().toString() else "%.1f".format(alt))
+
+            if (MockService.isRunning) {
+                updateRunningService()
+            }
+            Toast.makeText(this, "Coordinates & Altitude updated from Map!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private val telemetryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             intent ?: return
             val isRunning = intent.getBooleanExtra(MockService.EXTRA_IS_RUNNING, false)
             val lat = intent.getDoubleExtra(MockService.EXTRA_LAT, 0.0)
             val lon = intent.getDoubleExtra(MockService.EXTRA_LON, 0.0)
+            val alt = intent.getDoubleExtra(MockService.EXTRA_ALT, 15.0)
             val speedMps = intent.getFloatExtra(MockService.EXTRA_SPEED_MPS, 0f)
             val bearing = intent.getFloatExtra(MockService.EXTRA_BEARING, 0f)
             val drift = intent.getBooleanExtra(MockService.EXTRA_DRIFT, false)
             val distance = intent.getDoubleExtra(MockService.EXTRA_DISTANCE, 0.0)
 
-            updateTelemetryUI(isRunning, lat, lon, speedMps, bearing, drift, distance)
+            updateTelemetryUI(isRunning, lat, lon, alt, speedMps, bearing, drift, distance)
         }
     }
 
@@ -94,12 +116,13 @@ class MainActivity : AppCompatActivity() {
         tvLiveSpeed = findViewById(R.id.tvLiveSpeed)
         tvLiveHeading = findViewById(R.id.tvLiveHeading)
         tvLiveDistance = findViewById(R.id.tvLiveDistance)
-        tvLiveDrift = findViewById(R.id.tvLiveDrift)
+        tvLiveAltitude = findViewById(R.id.tvLiveAltitude)
         btnCopyCoords = findViewById(R.id.btnCopyCoords)
         tvStepSize = findViewById(R.id.tvStepSize)
 
         editLat = findViewById(R.id.lat)
         editLon = findViewById(R.id.lon)
+        editAlt = findViewById(R.id.alt)
         editSpeed = findViewById(R.id.speed)
         editBearing = findViewById(R.id.bearing)
         cbDrift = findViewById(R.id.cbDrift)
@@ -107,6 +130,7 @@ class MainActivity : AppCompatActivity() {
         // Default to Dubai Burj Khalifa if empty
         if (editLat.text.isEmpty()) editLat.setText("25.1972")
         if (editLon.text.isEmpty()) editLon.setText("55.2744")
+        if (editAlt.text.isEmpty()) editAlt.setText("15")
         if (editSpeed.text.isEmpty()) editSpeed.setText("0")
         if (editBearing.text.isEmpty()) editBearing.setText("0")
     }
@@ -118,6 +142,11 @@ class MainActivity : AppCompatActivity() {
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             clipboard.setPrimaryClip(ClipData.newPlainText("Coordinates", coords))
             Toast.makeText(this, "Coordinates copied to clipboard", Toast.LENGTH_SHORT).show()
+        }
+
+        // Open Interactive Map Picker
+        findViewById<Button>(R.id.btnOpenMapPicker).setOnClickListener {
+            openInteractiveMapPicker()
         }
 
         // Paste coordinates
@@ -139,6 +168,11 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnSaveBookmark).setOnClickListener {
             showSaveBookmarkDialog()
         }
+
+        // Main Altitude quick chips
+        findViewById<Button>(R.id.chipMainAlt0).setOnClickListener { editAlt.setText("0") }
+        findViewById<Button>(R.id.chipMainAlt50).setOnClickListener { editAlt.setText("50") }
+        findViewById<Button>(R.id.chipMainAlt250).setOnClickListener { editAlt.setText("250") }
 
         // Speed Preset Chips
         findViewById<Button>(R.id.chipSpeedStationary).setOnClickListener { editSpeed.setText("0") }
@@ -201,6 +235,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun openInteractiveMapPicker() {
+        val la = editLat.text.toString().toDoubleOrNull() ?: 25.1972
+        val lo = editLon.text.toString().toDoubleOrNull() ?: 55.2744
+        val al = editAlt.text.toString().toDoubleOrNull() ?: 15.0
+
+        val intent = Intent(this, MapPickerActivity::class.java).apply {
+            putExtra(MapPickerActivity.EXTRA_INITIAL_LAT, la)
+            putExtra(MapPickerActivity.EXTRA_INITIAL_LON, lo)
+            putExtra(MapPickerActivity.EXTRA_INITIAL_ALT, al)
+        }
+        mapPickerLauncher.launch(intent)
+    }
+
     private fun setStepSize(meters: Double, label: String) {
         selectedStepMeters = meters
         tvStepSize.text = "Step: $label"
@@ -233,6 +280,8 @@ class MainActivity : AppCompatActivity() {
     private fun startMocking() {
         val la = editLat.text.toString().toDoubleOrNull()
         val lo = editLon.text.toString().toDoubleOrNull()
+        val al = editAlt.text.toString().toDoubleOrNull() ?: 15.0
+
         if (la == null || lo == null || la !in -90.0..90.0 || lo !in -180.0..180.0) {
             Toast.makeText(this, "Please enter valid coordinates (Lat -90..90, Lon -180..180)", Toast.LENGTH_SHORT).show()
             return
@@ -247,6 +296,7 @@ class MainActivity : AppCompatActivity() {
             action = MockService.ACTION_START
             putExtra(MockService.EXTRA_LAT, la)
             putExtra(MockService.EXTRA_LON, lo)
+            putExtra(MockService.EXTRA_ALT, al)
             putExtra(MockService.EXTRA_SPEED_MPS, speedMps)
             putExtra(MockService.EXTRA_BEARING, bearing)
             putExtra(MockService.EXTRA_DRIFT, drift)
@@ -258,12 +308,13 @@ class MainActivity : AppCompatActivity() {
             startService(intent)
         }
 
-        updateTelemetryUI(true, la, lo, speedMps, bearing, drift, 0.0)
+        updateTelemetryUI(true, la, lo, al, speedMps, bearing, drift, 0.0)
     }
 
     private fun updateRunningService() {
         val la = editLat.text.toString().toDoubleOrNull()
         val lo = editLon.text.toString().toDoubleOrNull()
+        val al = editAlt.text.toString().toDoubleOrNull() ?: 15.0
         val speedKmH = editSpeed.text.toString().toFloatOrNull() ?: 0f
         val speedMps = speedKmH / 3.6f
         val bearing = editBearing.text.toString().toFloatOrNull() ?: 0f
@@ -273,6 +324,7 @@ class MainActivity : AppCompatActivity() {
             action = MockService.ACTION_UPDATE
             if (la != null && la in -90.0..90.0) putExtra(MockService.EXTRA_LAT, la)
             if (lo != null && lo in -180.0..180.0) putExtra(MockService.EXTRA_LON, lo)
+            putExtra(MockService.EXTRA_ALT, al)
             putExtra(MockService.EXTRA_SPEED_MPS, speedMps)
             putExtra(MockService.EXTRA_BEARING, bearing)
             putExtra(MockService.EXTRA_DRIFT, drift)
@@ -285,7 +337,7 @@ class MainActivity : AppCompatActivity() {
             action = MockService.ACTION_STOP
         }
         startService(intent)
-        updateTelemetryUI(false, MockService.liveLat, MockService.liveLon, 0f, 0f, false, 0.0)
+        updateTelemetryUI(false, MockService.liveLat, MockService.liveLon, MockService.liveAltitude, 0f, 0f, false, 0.0)
         Toast.makeText(this, "Spoofing stopped", Toast.LENGTH_SHORT).show()
     }
 
@@ -293,13 +345,14 @@ class MainActivity : AppCompatActivity() {
         isRunning: Boolean,
         lat: Double,
         lon: Double,
+        alt: Double,
         speedMps: Float,
         bearing: Float,
         drift: Boolean,
         distance: Double
     ) {
         if (isRunning) {
-            tvStatusBadge.text = "● ACTIVE"
+            tvStatusBadge.text = if (drift) "● ACTIVE (DRIFT)" else "● ACTIVE"
             tvStatusBadge.setTextColor(ContextCompat.getColor(this, R.color.status_active))
             tvStatusBadge.setBackgroundResource(R.drawable.badge_active)
         } else {
@@ -310,6 +363,7 @@ class MainActivity : AppCompatActivity() {
 
         tvCurrentCoords.text = "%.6f, %.6f".format(lat, lon)
         tvLiveSpeed.text = "%.1f km/h".format(speedMps * 3.6f)
+        tvLiveAltitude.text = "%.0f m".format(alt)
 
         val cardinal = when ((((bearing + 22.5f) % 360f) / 45f).toInt()) {
             0 -> "N"
@@ -323,7 +377,6 @@ class MainActivity : AppCompatActivity() {
         }
         tvLiveHeading.text = "%.0f° (%s)".format(bearing, cardinal)
         tvLiveDistance.text = if (distance >= 1000) "%.2f km".format(distance / 1000.0) else "%.0f m".format(distance)
-        tvLiveDrift.text = if (drift) "ON" else "OFF"
     }
 
     private fun syncWithServiceState() {
@@ -331,6 +384,7 @@ class MainActivity : AppCompatActivity() {
             MockService.isRunning,
             MockService.liveLat,
             MockService.liveLon,
+            MockService.liveAltitude,
             MockService.liveSpeedMps,
             MockService.liveBearing,
             MockService.liveDrift,
@@ -353,7 +407,11 @@ class MainActivity : AppCompatActivity() {
             if (la != null && lo != null && la in -90.0..90.0 && lo in -180.0..180.0) {
                 editLat.setText(la.toString())
                 editLon.setText(lo.toString())
-                Toast.makeText(this, "Loaded coordinates: $la, $lo", Toast.LENGTH_SHORT).show()
+                if (parts.size >= 3) {
+                    val al = parts[2].toDoubleOrNull()
+                    if (al != null) editAlt.setText(al.toString())
+                }
+                Toast.makeText(this, "Loaded coordinates from clipboard", Toast.LENGTH_SHORT).show()
                 return
             }
         }
@@ -361,27 +419,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showPresetsDialog() {
+        // Quad: Label, Lat, Lon, Alt
         val presets = listOf(
-            Triple("🇦🇪 Dubai: Burj Khalifa", 25.1972, 55.2744),
-            Triple("🇺🇸 New York: Times Square", 40.7580, -73.9855),
-            Triple("🇬🇧 London: Big Ben", 51.5007, -0.1246),
-            Triple("🇯🇵 Tokyo: Shibuya Crossing", 35.6595, 139.7005),
-            Triple("🇫🇷 Paris: Eiffel Tower", 48.8584, 2.2945),
-            Triple("🇦🇺 Sydney: Opera House", -33.8568, 151.2153),
-            Triple("🇺🇸 San Francisco: Golden Gate", 37.8199, -122.4783),
-            Triple("🇸🇬 Singapore: Marina Bay Sands", 1.2847, 103.8610),
-            Triple("🇮🇹 Rome: Colosseum", 41.8902, 12.4922),
-            Triple("🇪🇬 Cairo: Pyramids of Giza", 29.9792, 31.1342)
+            Preset("🇦🇪 Dubai: Burj Khalifa", 25.1972, 55.2744, 150.0),
+            Preset("🇺🇸 New York: Times Square", 40.7580, -73.9855, 12.0),
+            Preset("🇬🇧 London: Big Ben", 51.5007, -0.1246, 18.0),
+            Preset("🇯🇵 Tokyo: Shibuya Crossing", 35.6595, 139.7005, 35.0),
+            Preset("🇫🇷 Paris: Eiffel Tower", 48.8584, 2.2945, 300.0),
+            Preset("🇦🇺 Sydney: Opera House", -33.8568, 151.2153, 8.0),
+            Preset("🇺🇸 San Francisco: Golden Gate", 37.8199, -122.4783, 67.0),
+            Preset("🇸🇬 Singapore: Marina Bay Sands", 1.2847, 103.8610, 200.0),
+            Preset("🇮🇹 Rome: Colosseum", 41.8902, 12.4922, 45.0),
+            Preset("🇪🇬 Cairo: Pyramids of Giza", 29.9792, 31.1342, 138.0)
         )
 
-        val names = presets.map { "${it.first}\n(${it.second}, ${it.third})" }.toTypedArray()
+        val names = presets.map { "${it.name}\n(Lat: ${it.lat}, Lon: ${it.lon}, Alt: ${it.alt}m)" }.toTypedArray()
         AlertDialog.Builder(this)
             .setTitle("Select Landmark Preset")
             .setItems(names) { _, which ->
                 val selected = presets[which]
-                editLat.setText(selected.second.toString())
-                editLon.setText(selected.third.toString())
-                Toast.makeText(this, "Selected ${selected.first}", Toast.LENGTH_SHORT).show()
+                editLat.setText(selected.lat.toString())
+                editLon.setText(selected.lon.toString())
+                editAlt.setText(selected.alt.toInt().toString())
+                Toast.makeText(this, "Selected ${selected.name}", Toast.LENGTH_SHORT).show()
                 if (MockService.isRunning) {
                     updateRunningService()
                 }
@@ -390,33 +450,49 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    data class Preset(val name: String, val lat: Double, val lon: Double, val alt: Double)
+
     private fun showFavoritesDialog() {
         val raw = prefs.getString("bookmarks", "") ?: ""
         val bookmarks = raw.split(";;").filter { it.isNotEmpty() }.mapNotNull { entry ->
             val p = entry.split("|")
-            if (p.size == 3) Triple(p[0], p[1].toDoubleOrNull(), p[2].toDoubleOrNull()) else null
-        }.filter { it.second != null && it.third != null }
+            when {
+                p.size >= 4 -> {
+                    val lat = p[1].toDoubleOrNull()
+                    val lon = p[2].toDoubleOrNull()
+                    val alt = p[3].toDoubleOrNull() ?: 15.0
+                    if (lat != null && lon != null) Preset(p[0], lat, lon, alt) else null
+                }
+                p.size == 3 -> {
+                    val lat = p[1].toDoubleOrNull()
+                    val lon = p[2].toDoubleOrNull()
+                    if (lat != null && lon != null) Preset(p[0], lat, lon, 15.0) else null
+                }
+                else -> null
+            }
+        }
 
         if (bookmarks.isEmpty()) {
-            Toast.makeText(this, "No saved favorites yet. Click '+ Bookmark' to save one!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "No saved favorites yet. Pick on map or click '+ Bookmark' to save one!", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val names = bookmarks.map { "⭐ ${it.first}\n(${it.second}, ${it.third})" }.toTypedArray()
+        val names = bookmarks.map { "⭐ ${it.name}\n(Lat: ${it.lat}, Lon: ${it.lon}, Alt: ${it.alt}m)" }.toTypedArray()
         AlertDialog.Builder(this)
-            .setTitle("Saved Favorites")
+            .setTitle("Saved Bookmarks")
             .setItems(names) { _, which ->
                 val chosen = bookmarks[which]
-                editLat.setText(chosen.second.toString())
-                editLon.setText(chosen.third.toString())
-                Toast.makeText(this, "Loaded ${chosen.first}", Toast.LENGTH_SHORT).show()
+                editLat.setText(chosen.lat.toString())
+                editLon.setText(chosen.lon.toString())
+                editAlt.setText(if (chosen.alt % 1.0 == 0.0) chosen.alt.toInt().toString() else chosen.alt.toString())
+                Toast.makeText(this, "Loaded ${chosen.name}", Toast.LENGTH_SHORT).show()
                 if (MockService.isRunning) {
                     updateRunningService()
                 }
             }
             .setNeutralButton("Clear All") { _, _ ->
                 prefs.edit().remove("bookmarks").apply()
-                Toast.makeText(this, "Favorites cleared", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Bookmarks cleared", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Close", null)
             .show()
@@ -425,28 +501,30 @@ class MainActivity : AppCompatActivity() {
     private fun showSaveBookmarkDialog() {
         val la = editLat.text.toString().toDoubleOrNull()
         val lo = editLon.text.toString().toDoubleOrNull()
+        val al = editAlt.text.toString().toDoubleOrNull() ?: 15.0
+
         if (la == null || lo == null) {
             Toast.makeText(this, "Enter valid coordinates first", Toast.LENGTH_SHORT).show()
             return
         }
 
         val input = EditText(this).apply {
-            hint = "Bookmark Name (e.g. Test Site 1)"
+            hint = "Bookmark Name (e.g. Office Test Lab)"
             setSingleLine()
             setPadding(40, 30, 40, 30)
         }
 
         AlertDialog.Builder(this)
-            .setTitle("Save Bookmark")
-            .setMessage("Save ($la, $lo) as a quick favorite:")
+            .setTitle("Save Bookmark with Altitude")
+            .setMessage("Save position:\nLat: $la\nLon: $lo\nAltitude: $al meters")
             .setView(input)
             .setPositiveButton("Save") { _, _ ->
                 val name = input.text.toString().trim().ifEmpty { "Location ${System.currentTimeMillis() % 1000}" }
                 val raw = prefs.getString("bookmarks", "") ?: ""
-                val entry = "$name|$la|$lo"
+                val entry = "$name|$la|$lo|$al"
                 val updated = if (raw.isEmpty()) entry else "$raw;;$entry"
                 prefs.edit().putString("bookmarks", updated).apply()
-                Toast.makeText(this, "Saved '$name' to favorites", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Saved '$name' (Alt: %.0fm) to favorites".format(al), Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel", null)
             .show()

@@ -34,6 +34,7 @@ class MockService : Service() {
 
         const val EXTRA_LAT = "lat"
         const val EXTRA_LON = "lon"
+        const val EXTRA_ALT = "alt"
         const val EXTRA_SPEED_MPS = "speed_mps"
         const val EXTRA_BEARING = "bearing"
         const val EXTRA_DRIFT = "drift"
@@ -47,6 +48,8 @@ class MockService : Service() {
         @Volatile var liveLat: Double = 25.2048
             private set
         @Volatile var liveLon: Double = 55.2708
+            private set
+        @Volatile var liveAltitude: Double = 15.0
             private set
         @Volatile var liveSpeedMps: Float = 0f
             private set
@@ -104,6 +107,7 @@ class MockService : Service() {
                 intent?.let {
                     if (it.hasExtra(EXTRA_LAT)) liveLat = it.getDoubleExtra(EXTRA_LAT, liveLat)
                     if (it.hasExtra(EXTRA_LON)) liveLon = it.getDoubleExtra(EXTRA_LON, liveLon)
+                    if (it.hasExtra(EXTRA_ALT)) liveAltitude = it.getDoubleExtra(EXTRA_ALT, liveAltitude)
                     if (it.hasExtra(EXTRA_SPEED_MPS)) liveSpeedMps = it.getFloatExtra(EXTRA_SPEED_MPS, liveSpeedMps)
                     if (it.hasExtra(EXTRA_BEARING)) liveBearing = it.getFloatExtra(EXTRA_BEARING, liveBearing)
                     if (it.hasExtra(EXTRA_DRIFT)) liveDrift = it.getBooleanExtra(EXTRA_DRIFT, liveDrift)
@@ -119,6 +123,7 @@ class MockService : Service() {
                 intent?.let {
                     liveLat = it.getDoubleExtra(EXTRA_LAT, liveLat)
                     liveLon = it.getDoubleExtra(EXTRA_LON, liveLon)
+                    liveAltitude = it.getDoubleExtra(EXTRA_ALT, 15.0)
                     liveSpeedMps = it.getFloatExtra(EXTRA_SPEED_MPS, 0f)
                     liveBearing = it.getFloatExtra(EXTRA_BEARING, 0f)
                     liveDrift = it.getBooleanExtra(EXTRA_DRIFT, true)
@@ -215,7 +220,7 @@ class MockService : Service() {
         var pushLat = liveLat
         var pushLon = liveLon
         var pushAccuracy = 1.8f
-        var pushAltitude = 14.5
+        var pushAltitude = liveAltitude
 
         if (liveDrift) {
             val driftLatMeters = (Math.random() - 0.5) * 2.2
@@ -259,6 +264,7 @@ class MockService : Service() {
             setPackage(packageName)
             putExtra(EXTRA_LAT, liveLat)
             putExtra(EXTRA_LON, liveLon)
+            putExtra(EXTRA_ALT, liveAltitude)
             putExtra(EXTRA_SPEED_MPS, liveSpeedMps)
             putExtra(EXTRA_BEARING, liveBearing)
             putExtra(EXTRA_DRIFT, liveDrift)
@@ -291,7 +297,7 @@ class MockService : Service() {
 
         val speedKmH = (liveSpeedMps * 3.6f)
         val title = "Mocka Active: %.4f, %.4f".format(liveLat, liveLon)
-        val text = "Speed: %.1f km/h • Heading: %.0f° • Distance: %.0fm".format(speedKmH, liveBearing, liveDistanceMeters)
+        val text = "Speed: %.1f km/h • Alt: %.0fm • Heading: %.0f°".format(speedKmH, liveAltitude, liveBearing)
 
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, CHANNEL_ID)
