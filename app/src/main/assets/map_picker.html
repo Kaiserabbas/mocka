@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Mocka Map Picker</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #map { width: 100%; height: 100%; background: #0B0F19; overflow: hidden; font-family: sans-serif; }
+    
+    /* Center Pin Reticle */
+    .center-pin-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -100%);
+      pointer-events: none;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .center-pin {
+      width: 36px;
+      height: 36px;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.6));
+    }
+    .pin-shadow {
+      width: 12px;
+      height: 6px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 50%;
+      margin-top: -3px;
+    }
+
+    /* Map layer switcher */
+    .layer-toggle {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 1000;
+      background: #151C2C;
+      border: 1px solid #27354E;
+      border-radius: 8px;
+      padding: 6px 10px;
+      color: #0EA5E9;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    .leaflet-control-zoom {
+      border: 1px solid #27354E !important;
+      border-radius: 8px !important;
+      overflow: hidden;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
+    }
+    .leaflet-control-zoom a {
+      background-color: #151C2C !important;
+      color: #F8FAFC !important;
+      border-bottom: 1px solid #27354E !important;
+    }
+    .leaflet-control-attribution {
+      background: rgba(11, 15, 25, 0.7) !important;
+      color: #64748B !important;
+      font-size: 9px !important;
+    }
+    .leaflet-control-attribution a {
+      color: #94A3B8 !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Center Target Pin -->
+  <div class="center-pin-container">
+    <svg class="center-pin" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2Z" fill="#0EA5E9" stroke="#FFFFFF" stroke-width="1.5" />
+      <circle cx="12" cy="9" r="3.2" fill="#FFFFFF" />
+      <circle cx="12" cy="9" r="1.6" fill="#06B6D4" />
+    </svg>
+    <div class="pin-shadow"></div>
+  </div>
+
+  <button class="layer-toggle" id="btnToggleLayer" onclick="toggleMapLayer()">🗺️ Map / Dark</button>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    var map;
+    var darkLayer, streetLayer;
+    var currentMode = 'dark';
+    var isUserMoving = false;
+
+    function initMap(initialLat, initialLon) {
+      darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
+        maxZoom: 19
+      });
+
+      streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
+      });
+
+      map = L.map('map', {
+        center: [initialLat, initialLon],
+        zoom: 15,
+        zoomControl: true,
+        layers: [darkLayer]
+      });
+
+      map.on('move', function() {
+        var center = map.getCenter();
+        notifyNative(center.lat, center.lng);
+      });
+
+      map.on('click', function(e) {
+        map.panTo(e.latlng, { animate: true, duration: 0.5 });
+        notifyNative(e.latlng.lat, e.latlng.lng);
+      });
+
+      notifyNative(initialLat, initialLon);
+    }
+
+    function toggleMapLayer() {
+      if (currentMode === 'dark') {
+        map.removeLayer(darkLayer);
+        map.addLayer(streetLayer);
+        currentMode = 'street';
+        document.getElementById('btnToggleLayer').innerText = '🌙 Street / Dark';
+      } else {
+        map.removeLayer(streetLayer);
+        map.addLayer(darkLayer);
+        currentMode = 'dark';
+        document.getElementById('btnToggleLayer').innerText = '🗺️ Map / Dark';
+      }
+    }
+
+    function setCoordinates(lat, lon, zoom) {
+      if (map) {
+        map.setView([lat, lon], zoom || map.getZoom(), { animate: true });
+        notifyNative(lat, lon);
+      }
+    }
+
+    function notifyNative(lat, lon) {
+      if (window.AndroidBridge && window.AndroidBridge.onCoordinatesChanged) {
+        window.AndroidBridge.onCoordinatesChanged(Number(lat.toFixed(6)), Number(lon.toFixed(6)));
+      }
+    }
+
+    window.onload = function() {
+      // Default to Dubai Burj Khalifa if not overridden
+      initMap(25.1972, 55.2744);
+    };
+  </script>
+</body>
+</html>
