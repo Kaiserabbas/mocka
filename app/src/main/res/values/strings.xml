@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mocka</string>
+    <string name="app_subtitle">Advanced Mock Location &amp; GPS Telemetry Provider</string>
+    <string name="status_inactive">IDLE</string>
+    <string name="status_active">SPOOFING ACTIVE</string>
+    <string name="start_mocking">Start Spoofing</string>
+    <string name="update_mocking">Update Live</string>
+    <string name="stop_mocking">Stop Spoofing</string>
+    <string name="dev_options">Developer Options</string>
+</resources>

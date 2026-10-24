@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Radar ripple outer -->
+    <path
+        android:strokeColor="#200EA5E9"
+        android:strokeWidth="2.5"
+        android:pathData="M54,20 A34,34 0 1,0 54,88 A34,34 0 1,0 54,20" />
+    <!-- Radar ripple mid -->
+    <path
+        android:strokeColor="#4006B6D4"
+        android:strokeWidth="2"
+        android:pathData="M54,28 A26,26 0 1,0 54,80 A26,26 0 1,0 54,28" />
+    <!-- Map Pin body -->
+    <path
+        android:fillColor="#0EA5E9"
+        android:pathData="M54,26 C43.5,26 35,34.5 35,45 C35,58.5 54,78 54,78 C54,78 73,58.5 73,45 C73,34.5 64.5,26 54,26 Z" />
+    <!-- Center white dot -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,39 A6,6 0 1,0 54,51 A6,6 0 1,0 54,39 Z" />
+    <!-- Center accent dot -->
+    <path
+        android:fillColor="#06B6D4"
+        android:pathData="M54,42 A3,3 0 1,0 54,48 A3,3 0 1,0 54,42 Z" />
+</vector>

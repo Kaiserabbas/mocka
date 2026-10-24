@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg_main">#0B0F19</color>
+    <color name="bg_card">#151C2C</color>
+    <color name="bg_card_secondary">#1E293B</color>
+    <color name="border_card">#27354E</color>
+    
+    <color name="accent_primary">#0EA5E9</color>
+    <color name="accent_primary_dark">#0284C7</color>
+    <color name="accent_cyan">#06B6D4</color>
+    
+    <color name="status_active">#10B981</color>
+    <color name="status_active_bg">#1A10B981</color>
+    <color name="status_inactive">#64748B</color>
+    <color name="status_inactive_bg">#1A64748B</color>
+    
+    <color name="btn_danger">#EF4444</color>
+    <color name="btn_danger_dark">#DC2626</color>
+    
+    <color name="text_primary">#F8FAFC</color>
+    <color name="text_secondary">#94A3B8</color>
+    <color name="text_muted">#64748B</color>
+    
+    <color name="input_bg">#0F172A</color>
+    <color name="input_border">#334155</color>
+    <color name="input_border_focused">#0EA5E9</color>
+    
+    <color name="dpad_bg">#1E293B</color>
+    <color name="dpad_pressed">#334155</color>
+</resources>
