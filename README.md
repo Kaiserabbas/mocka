@@ -39,9 +39,19 @@ Unlike basic GPS spoofer apps that inject static, rigid coordinates, Mocka imple
   - `Drive` (60 km/h — City vehicular traffic)
   - `Highway` (110 km/h — Expressway velocity)
 
-### 🌊 Authentic GPS Jitter & Satellite Drift
-- Real-world satellite constellations naturally experience $\pm 1 \text{m}$ to $2.5 \text{m}$ micro-fluctuations due to atmospheric ionization.
-- Mocka includes an optional **Satellite Drift Toggle** that introduces subtle, realistic Gaussian variance to avoid detection by anti-spoof heuristic algorithms.
+### 🗺️ Interactive Visual Map Picker
+- **Point-and-Select Map View**: Drag, pan, and zoom anywhere across the globe with a centered target crosshair to pick coordinates visually with zero manual decimal entry.
+- **Global Place Search**: Integrated geocoding search bar powered by OpenStreetMap Nominatim. Search any address, landmark, or city (e.g. *"Eiffel Tower"*, *"Central Park"*) to navigate the pin instantly.
+- **Dark & Street Cartography**: Switch dynamically between CartoDB Dark (styled for nighttime/high-contrast developer workflows) and standard OpenStreetMap tiles.
+- **Direct Bookmark & Confirm**: Save favorites directly from the map with custom elevation or confirm into active spoofing with one tap.
+
+### ⛰️ Altitude & Elevation Simulation
+- Injects realistic, configurable altitude (meters above sea level) into both GPS and Network providers.
+- Quick elevation preset chips:
+  - `0m` (Sea Level / Ground plane)
+  - `50m` (Mid-rise building / elevated terrain)
+  - `250m` (Skyscraper / drone / aerial perspective)
+- Altitude is tracked in the live telemetry HUD and fully persisted in custom saved bookmarks.
 
 ### 🎮 Real-Time D-Pad Steer & Step Controls
 - Steer mock coordinates dynamically in real time without stopping or editing inputs:
